@@ -25,6 +25,8 @@ commandPrefix = '/js'
 bot = commands.Bot(command_prefix='/js ')
 serverIP = '147.135.36.19'
 serverPort = '30120'
+serverUp = True
+playerCount = '0'
 
 def init():
     global token
@@ -71,6 +73,48 @@ def srvStatus():
    except:
        return False
 
+
+async def test():
+    await bot.wait_until_ready()
+    channel = bot.get_channel(940739117443080243)
+    await channel.send('Hello, World!')
+
+
+async def monitorStatus():
+    global serverUp
+    await bot.wait_until_ready()
+    channel = bot.get_channel(940739117443080243)
+    msg_sent = False
+
+    while True:
+        serverUp = srvStatus()
+        if serverUp:
+            p = requests.get(f"http://{serverIP}:{serverPort}/players.json")
+            i = requests.get(f"http://{serverIP}:{serverPort}/info.json")
+
+            server = i.json()
+            maxPlayers = server['vars']['sv_maxClients']
+            serverName = server['vars']['sv_projectName']
+            serverName = serverName.replace("^4","")
+            serverName = serverName.replace("^5","")
+            serverName = serverName.replace("^0","")
+            players = p.json()
+            playerCount = len(players)
+            newMsg = discord.Embed(title=serverName,
+                description=f"Server Status: Online",
+                                   color=discord.Color.green())
+            newMsg.add_field(name="Player Count", value=playerCount, inline=True)
+            newMsg.add_field(name="Max Players", value=maxPlayers)
+        else:
+            newMsg = discord.Embed(title="Joutai State Roleplay - Revamped",
+                description=f"Server Status: Offline",
+                                   color=discord.Color.red())
+        if not msg_sent:
+            status = await channel.send(embed=newMsg)
+            msg_sent = True
+        else:
+            await status.edit(embed=newMsg)
+
 @bot.command()
 @commands.cooldown(rate=1, per=30)
 async def ping(ctx):
@@ -79,7 +123,10 @@ async def ping(ctx):
 @bot.command()
 @commands.cooldown(rate=1, per=30)
 async def status(ctx):
-    if srvStatus():
+    global playerCount
+    global serverUp
+    serverUp = srvStatus()
+    if serverUp:
         p = requests.get(f"http://{serverIP}:{serverPort}/players.json")
         i = requests.get(f"http://{serverIP}:{serverPort}/info.json")
     
@@ -146,8 +193,7 @@ async def apps(ctx):
 
 
 init()
+bot.loop.create_task(monitorStatus())
 bot.run(token)
-
-
 
 # rulesMsg.add_field(name="", value='``` ```',inline=False)
